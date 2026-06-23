@@ -33,7 +33,6 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
 
-
     Route::get('/user/profile', [UserController::class, 'profile']);
     Route::post('/user/update-profile', [UserController::class, 'updateProfile']); // Multipart form ke liye POST use hoga
     Route::put('/user/update-password', [UserController::class, 'updatePassword']);
