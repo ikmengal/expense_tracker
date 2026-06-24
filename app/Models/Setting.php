@@ -6,5 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class Setting extends Model
 {
-    protected $fillable = ['site_name', 'site_email', 'site_logo', 'currency_symbol'];
+    protected $fillable = [
+        'site_name',
+        'site_email',
+        'site_logo',
+        'currency_symbol',
+        'site_address',
+        'site_url',
+        'site_favicon',
+        'site_banner',
+        'site_about'
+    ];
 }

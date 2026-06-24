@@ -98,30 +98,64 @@ class AdminController extends Controller
     // System Wide Branding Update (Logo + Name)
     public function updateSettings(Request $request)
     {
+        // 1. Saari fields ki validation yahan add kardi hai
         $request->validate([
             'site_name'       => 'required|string|max:255',
             'site_email'      => 'required|email|max:255',
+            'site_url'        => 'required|url|max:255',
             'currency_symbol' => 'required|string|max:10',
-            'site_logo'       => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048'
+            'site_address'    => 'required|string|max:500',
+            'site_about'      => 'required|string|max:1000',
+            'site_logo'       => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048',
+            'site_banner'     => 'nullable|image|mimes:jpeg,png,jpg,svg|max:3072',
+            'site_favicon'    => 'nullable|image|mimes:jpeg,png,jpg,ico,svg|max:1024'
         ]);
 
+        // FirstOrCreate use karne se id 1 par hi data secure rahega
         $setting = Setting::firstOrCreate(['id' => 1]);
 
+        // 2. Text fields ko map/assign karna
         $setting->site_name       = $request->site_name;
         $setting->site_email      = $request->site_email;
+        $setting->site_url        = $request->site_url;
         $setting->currency_symbol = $request->currency_symbol;
+        $setting->site_address    = $request->site_address;
+        $setting->site_about      = $request->site_about;
 
+        // 3. Handle Site Logo (Aapke asset() wale logic ke sath)
         if ($request->hasFile('site_logo')) {
-            // Purana logo storage se delete karne ke liye
             if ($setting->site_logo) {
-                Storage::disk('public')->delete(str_replace('/storage/', '', $setting->site_logo));
+                // Full URL se path nikal kar storage se delete karega
+                Storage::disk('public')->delete(str_replace(asset('storage/'), '', $setting->site_logo));
             }
             $path = $request->file('site_logo')->store('uploads', 'public');
             $setting->site_logo = asset('storage/' . $path);
         }
 
+        // 4. Handle Site Banner
+        if ($request->hasFile('site_banner')) {
+            if ($setting->site_banner) {
+                Storage::disk('public')->delete(str_replace(asset('storage/'), '', $setting->site_banner));
+            }
+            $path = $request->file('site_banner')->store('uploads', 'public');
+            $setting->site_banner = asset('storage/' . $path);
+        }
+
+        // 5. Handle Site Favicon
+        if ($request->hasFile('site_favicon')) {
+            if ($setting->site_favicon) {
+                Storage::disk('public')->delete(str_replace(asset('storage/'), '', $setting->site_favicon));
+            }
+            $path = $request->file('site_favicon')->store('uploads', 'public');
+            $setting->site_favicon = asset('storage/' . $path);
+        }
+
         $setting->save();
-        return response()->json(['message' => 'Branding matrix updated successfully', 'settings' => $setting]);
+
+        return response()->json([
+            'message'  => 'Branding matrix updated successfully',
+            'settings' => $setting
+        ], 200);
     }
 
     // Update Admin Master Profile

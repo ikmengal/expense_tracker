@@ -1,0 +1,21 @@
+<svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="markGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0FB88C"/>
+      <stop offset="100%" stop-color="#0A6FB8"/>
+    </linearGradient>
+    <linearGradient id="coinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE08A"/>
+      <stop offset="100%" stop-color="#F5B544"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="160" height="160" rx="32" fill="url(#markGrad)"/>
+
+  <rect x="30" y="100" width="22" height="40" rx="6" fill="#FFFFFF" opacity="0.92"/>
+  <rect x="62" y="80" width="22" height="60" rx="6" fill="#FFFFFF" opacity="0.96"/>
+  <rect x="94" y="56" width="22" height="84" rx="6" fill="#FFFFFF"/>
+
+  <circle cx="120" cy="42" r="24" fill="url(#coinGrad)" stroke="#FFFFFF" stroke-width="4"/>
+  <path d="M120 31 v22 M114 36 h12 a5 5 0 0 1 0 10 h-8 a5 5 0 0 0 0 10 h12" stroke="#8a5a12" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
