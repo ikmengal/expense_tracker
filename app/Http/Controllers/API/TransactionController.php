@@ -972,11 +972,12 @@ class TransactionController extends Controller
 
             $apiKey = env('GEMINI_API_KEY');
 
-            // Secured Header Call
             $response = Http::withHeaders([
                 'Content-Type'   => 'application/json',
                 'X-goog-api-key' => $apiKey,
-            ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", [
+            ])
+            ->timeout(15)
+            ->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", [
                 'contents' => [
                     [
                         'parts' => [
@@ -995,14 +996,19 @@ class TransactionController extends Controller
 
             if (isset($aiResult['candidates'][0]['content']['parts'][0]['text'])) {
                 $insights = $aiResult['candidates'][0]['content']['parts'][0]['text'];
-                return response()->json(['success' => true, 'insights' => trim($insights)]);
+
+                // Frontend ko humne 'monthlyAiInsights' variable dena hai
+                return response()->json([
+                    'success' => true,
+                    'monthlyAiInsights' => trim($insights)
+                ]);
             }
 
             return response()->json(['success' => false, 'message' => 'Invalid structure from AI response.'], 500);
 
         } catch (\Exception $e) {
             Log::error("Insights Exception: " . $e->getMessage());
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Connection timed out or failed. Please try again.'], 500);
         }
     }
 
