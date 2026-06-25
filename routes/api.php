@@ -77,6 +77,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // User routes for support tickets
     Route::get('/user/tickets', [SupportController::class, 'index']);
     Route::post('/user/tickets', [SupportController::class, 'store']);
+
+    Route::get('/expenses/insights', [TransactionController::class, 'getFinancialInsights']);
+    Route::post('/transactions', [TransactionController::class, 'handleSubmitTransaction']);
 });
 
 // Temporary 'role:Admin' ko hata diya taaki aap testing kar sakein

@@ -938,4 +938,158 @@ class TransactionController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Server error during live execution.'], 500);
         }
     }
+
+    /**
+     * 💡 AI Financial Coach - Pichle 30 din ka Category breakdown analyze karta hai
+     */
+    public function getFinancialInsights()
+    {
+        try {
+            $user = auth()->user();
+
+            // Pichle 30 din ka data nikalna
+            $expensesSummary = Transaction::where('transactions.user_id', $user->id)
+                ->where('transactions.date', '>=', now()->subDays(30))
+                ->join('categories', 'transactions.category_id', '=', 'categories.id')
+                ->selectRaw('categories.name as category_name, SUM(transactions.amount) as total')
+                ->groupBy('categories.name')
+                ->get()
+                ->pluck('total', 'category_name')
+                ->toArray();
+
+            if (empty($expensesSummary)) {
+                return response()->json([
+                    'success' => true,
+                    'insights' => 'Abhi aapka pichle 30 din ka koi kharcha recorded nahi hai. Kuch entries add karein taake AI analysis shuru ho sake!'
+                ]);
+            }
+
+            $summaryString = json_encode($expensesSummary);
+
+            $prompt = "A user spent these total amounts in different categories over the past 30 days: {$summaryString}.
+            Analyze this profile data and generate 2 short, highly practical budgeting tips or savings insights.
+            Write strictly in Roman Urdu or simple conversational English. Keep the entire response under 60 words total.";
+
+            $apiKey = env('GEMINI_API_KEY');
+
+            // Secured Header Call
+            $response = Http::withHeaders([
+                'Content-Type'   => 'application/json',
+                'X-goog-api-key' => $apiKey,
+            ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", [
+                'contents' => [
+                    [
+                        'parts' => [
+                            ['text' => $prompt]
+                        ]
+                    ]
+                ]
+            ]);
+
+            if ($response->failed()) {
+                Log::error("Gemini Failure Logs: " . $response->body());
+                return response()->json(['success' => false, 'message' => 'Gemini API connection failed.'], 502);
+            }
+
+            $aiResult = $response->json();
+
+            if (isset($aiResult['candidates'][0]['content']['parts'][0]['text'])) {
+                $insights = $aiResult['candidates'][0]['content']['parts'][0]['text'];
+                return response()->json(['success' => true, 'insights' => trim($insights)]);
+            }
+
+            return response()->json(['success' => false, 'message' => 'Invalid structure from AI response.'], 500);
+
+        } catch (\Exception $e) {
+            Log::error("Insights Exception: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * ⚡ Transaction Record and Smart Anomaly Detection
+     */
+    public function handleSubmitTransaction(Request $request)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'category_id' => 'required|exists:categories,id',
+            'currency' => 'string|max:10',
+            'description' => 'nullable|string',
+            'date' => 'required|date'
+        ]);
+
+        try {
+            $user = auth()->user();
+            $categoryId = $request->category_id;
+            $newAmountInPkr = $request->amount;
+
+            // 1. Baseline calculation
+            $averageExpense = Transaction::where('user_id', $user->id)
+                ->where('category_id', $categoryId)
+                ->where('date', '>=', now()->subMonths(3))
+                ->avg('amount') ?? 0;
+
+            $isAnomaly = false;
+            $anomalyWarning = null;
+
+            // 2. Trigger rule and Gemini execution
+            if ($averageExpense > 0 && $newAmountInPkr > ($averageExpense * 2)) {
+                $prompt = "A user usually spends an average of {$averageExpense} PKR in this specific category channel. Today they just logged a transaction spike of {$newAmountInPkr} PKR.
+                Is this an unexpected baseline deviation (anomaly)?
+                Respond strictly in a clean JSON structure with these exact keys:
+                'is_anomaly' (boolean true or false) and 'warning_message' (a 1-line witty caution alert in Roman Urdu or plain English warning them about this sudden trend spike). Do not output markdown code blocks, do not wrap in ```json.";
+
+                $apiKey = env('GEMINI_API_KEY');
+                $response = Http::withHeaders([
+                    'Content-Type' => 'application/json',
+                ])->post("[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=){$apiKey}", [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $prompt]
+                            ]
+                        ]
+                    ]
+                ]);
+
+                if ($response->successful()) {
+                    $aiResult = $response->json();
+                    $rawText = $aiResult['candidates'][0]['content']['parts'][0]['text'] ?? '';
+
+                    // ⚡ Bulletproof JSON extraction: markdown clean karne ka logic
+                    $cleanJson = preg_replace('/^```json\s+|```$/m', '', trim($rawText));
+                    $aiData = json_decode($cleanJson, true);
+
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $isAnomaly = $aiData['is_anomaly'] ?? false;
+                        $anomalyWarning = $aiData['warning_message'] ?? null;
+                    }
+                }
+            }
+
+            // 3. Save into Database
+            $transaction = new Transaction();
+            $transaction->user_id = $user->id;
+            $transaction->category_id = $categoryId;
+            $transaction->amount = $newAmountInPkr;
+            $transaction->actual_amount = $request->actual_amount ?? $newAmountInPkr;
+            $transaction->currency = $request->currency ?? 'PKR';
+            $transaction->exchange_rate = $request->exchange_rate ?? 1.00;
+            $transaction->description = $request->description;
+            $transaction->date = $request->date;
+            $transaction->save();
+
+            return response()->json([
+                'success' => true,
+                'transaction' => $transaction,
+                'is_anomaly' => $isAnomaly,
+                'warning' => $anomalyWarning
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Transaction Execution Error: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to log transaction'], 500);
+        }
+    }
 }
