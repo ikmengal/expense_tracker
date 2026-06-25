@@ -54,7 +54,8 @@ class AdminController extends Controller
     }
 
     // Ticket Resolution Action Engine
-    public function replyToTicket(Request $request, $id){
+    public function replyToTicket(Request $request, $id)
+    {
         $request->validate([
             'reply' => 'required|string|min:3'
         ]);
@@ -77,10 +78,10 @@ class AdminController extends Controller
     {
         $setting = Setting::first();
         return response()->json($setting ?? [
-            'site_name' => 'CASHFLOW',
+            'site_name' => 'SpendSence',
             'site_logo' => null,
             'currency_symbol' => '$',
-            'site_email' => 'admin@cashflow.com'
+            'site_email' => 'admin@spendsence.com'
         ]);
     }
 
@@ -89,9 +90,9 @@ class AdminController extends Controller
     {
         // Agar table khali hai toh pehla record aapke naye columns ke sath create karega
         return response()->json(Setting::firstOrCreate(['id' => 1], [
-            'site_name' => 'CASHFLOW',
+            'site_name' => 'SpendSence',
             'currency_symbol' => '$',
-            'site_email' => 'admin@cashflow.com'
+            'site_email' => 'admin@spendsence.com'
         ]));
     }
 
